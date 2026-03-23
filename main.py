@@ -180,14 +180,18 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
         summary = (
             f"{ahead_by} commit{'s' if ahead_by != 1 else ''} waiting to be pushed"
         )
-        status = "warning"
+    elif uncommitted_changes > 0:
+        summary = f"{uncommitted_changes} uncommitted file change{'s' if uncommitted_changes != 1 else ''}"
     else:
         summary = "Up to date with upstream"
-        status = "okay"
+
+    status: Literal["okay", "warning"] = (
+        "warning" if (ahead_by > 0 or uncommitted_changes > 0) else "okay"
+    )
 
     if behind_by > 0:
         summary += f"; {behind_by} behind upstream"
-    if uncommitted_changes > 0:
+    if ahead_by > 0 and uncommitted_changes > 0:
         summary += f"; {uncommitted_changes} local file change{'s' if uncommitted_changes != 1 else ''}"
 
     return ProjectStatus(

@@ -4,15 +4,13 @@ Small FastAPI application that scans one or more project root folders and shows 
 
 ## Configuration
 
-Create a `.env` file in the project root and set `PROJECT_ROOTS` to a colon-separated list of folders to scan:
+Create a `.env` file in the project root (use `.env.example` as a starting point) and configure the settings below.
 
-```dotenv
-PROJECT_ROOTS=/home/you/projects:/home/you/work
-```
-
-Each path can be:
-- a container folder whose direct subfolders are each scanned as individual projects
-- a path that is itself a git repo, in which case it is monitored directly
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `PROJECT_ROOTS` | Yes | _(empty)_ | Colon-separated list of folders to scan. Each path can be a container folder whose direct subfolders are scanned as individual projects, or a path that is itself a git repo and is monitored directly. Example: `/home/you/projects:/home/you/work` |
+| `APP_BASE_PATH` | No | _(empty)_ | URL path prefix to mount the app under, useful when serving behind a reverse proxy at a sub-path. Example: `/localgitmonitor` |
+| `DEV` | No | `false` | Set to `true` to enable Uvicorn auto-reload for development. |
 
 ## Run
 
@@ -25,9 +23,9 @@ Then open `http://127.0.0.1:8010`.
 
 ## Status colours
 
-- **Green** — upstream configured, nothing waiting to be pushed
-- **Yellow** — commits exist locally that have not been pushed
-- **Red** — no git repo, folder missing, or no upstream remote configured
+- **Green OKAY** — upstream configured, nothing waiting to be pushed
+- **Yellow WARNING** — commits exist locally that have not been pushed, or there are uncommitted (dirty) file changes
+- **Red CRITICAL** — no git repo, folder missing, or no upstream remote configured
 
 ## Terms
 
