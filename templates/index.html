@@ -93,6 +93,17 @@
                             <span class="status-pill" :class="`pill-${project.status}`" x-text="project.status.toUpperCase()"></span>
                         </div>
                         <p class="repo-summary" x-text="project.summary"></p>
+                        <div class="repo-bottom">
+                        <template x-if="project.remote_url">
+                            <p class="repo-remote-url">
+                                <template x-if="project.remote_url.startsWith('http')">
+                                    <a :href="project.remote_url" target="_blank" rel="noopener noreferrer" class="remote-link" x-text="project.remote_url"></a>
+                                </template>
+                                <template x-if="!project.remote_url.startsWith('http')">
+                                    <span class="remote-link" x-text="project.remote_url"></span>
+                                </template>
+                            </p>
+                        </template>
                         <dl class="repo-meta">
                             <div>
                                 <dt>Branch</dt>
@@ -112,6 +123,7 @@
                             </div>
                         </dl>
                         <p class="repo-root">Scanned from <span class="repo-path" x-text="project.source_root"></span></p>
+                        </div>
                     </article>
                 </template>
             </div>

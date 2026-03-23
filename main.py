@@ -40,6 +40,7 @@ class ProjectStatus(BaseModel):
     has_remote: bool
     branch: str | None
     last_commit_date: str | None
+    remote_url: str | None
     source_root: str
 
 
@@ -77,6 +78,19 @@ def is_git_repository(path: Path) -> bool:
         return False
     result = git_command(path, "rev-parse", "--is-inside-work-tree")
     return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+def get_remote_url(repo_root: Path) -> str | None:
+    result = git_command(repo_root, "remote", "get-url", "origin")
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    remotes_result = git_command(repo_root, "remote")
+    remotes = [r for r in remotes_result.stdout.splitlines() if r.strip()]
+    if remotes:
+        url_result = git_command(repo_root, "remote", "get-url", remotes[0])
+        if url_result.returncode == 0 and url_result.stdout.strip():
+            return url_result.stdout.strip()
+    return None
 
 
 def get_last_commit_date(repo_path: Path) -> str | None:
@@ -146,6 +160,7 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
             has_remote=False,
             branch=None,
             last_commit_date=None,
+            remote_url=None,
             source_root=str(source_root),
         )
 
@@ -163,6 +178,7 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
             has_remote=False,
             branch=None,
             last_commit_date=None,
+            remote_url=None,
             source_root=str(source_root),
         )
 
@@ -201,6 +217,7 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
             has_remote=False,
             branch=branch,
             last_commit_date=get_last_commit_date(repo_root),
+            remote_url=get_remote_url(repo_root),
             source_root=str(source_root),
         )
 
@@ -239,6 +256,7 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
         has_remote=True,
         branch=branch,
         last_commit_date=get_last_commit_date(repo_root),
+        remote_url=get_remote_url(repo_root),
         source_root=str(source_root),
     )
 
