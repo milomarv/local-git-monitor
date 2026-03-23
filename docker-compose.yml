@@ -1,0 +1,26 @@
+services:
+  app:
+    image: local-git-monitor:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local-git-monitor
+    ports:
+      - "8010:8010"
+    env_file:
+      - .env
+    volumes:
+      - ${PROJECT_ROOTS}:${PROJECT_ROOTS}:ro
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.local-git-monitor.rule=PathPrefix(`${APP_BASE_PATH}`)
+      - traefik.http.routers.local-git-monitor.entrypoints=websecure
+      - traefik.http.routers.local-git-monitor.tls=true
+      - traefik.http.services.local-git-monitor.loadbalancer.server.port=8010
+    networks:
+      - traefik-public
+
+networks:
+  traefik-public:
+    external: true

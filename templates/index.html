@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Git Monitor</title>
+    <link rel="icon" type="image/svg+xml" href="{{ base_path }}/static/favicon.svg">
+    <link rel="stylesheet" href="{{ base_path }}/static/styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+</head>
+<body>
+    <script id="initial-state" type="application/json">{{ initial_state | tojson }}</script>
+    <main class="shell" x-data="dashboard()" x-init="init()">
+        <section class="hero">
+            <div>
+                <h1 class="brand-title">
+                    <img src="{{ base_path }}/static/favicon.svg" alt="" class="brand-logo" aria-hidden="true">
+                    <span>Local Git Monitor</span>
+                </h1>
+                <p class="lede">Track local project folders, detect missing git setup, and see exactly how many commits are waiting to be pushed.</p>
+            </div>
+            <div class="summary-grid">
+                <article class="summary-card summary-neutral">
+                    <span>Total</span>
+                    <strong x-text="state.summary.total"></strong>
+                </article>
+                <article class="summary-card summary-okay">
+                    <span>Okay</span>
+                    <strong x-text="state.summary.okay"></strong>
+                </article>
+                <article class="summary-card summary-warning">
+                    <span>Warning</span>
+                    <strong x-text="state.summary.warning"></strong>
+                </article>
+                <article class="summary-card summary-critical">
+                    <span>Critical</span>
+                    <strong x-text="state.summary.critical"></strong>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Repositories</h2>
+                    <div class="date-info">
+                        <p>Last scan:</p>
+                        <div class="date-pill"><time x-text="formattedScanTime"></time></div>
+                    </div>
+                </div>
+                <button type="button" class="ghost" @click="refresh()" :disabled="busy">Refresh</button>
+            </div>
+            <template x-if="state.missing_roots && state.missing_roots.length > 0">
+                <div class="missing-roots-banners">
+                    <template x-for="root in state.missing_roots" :key="root">
+                        <div class="banner banner-error">
+                            <span class="banner-icon">&#9888;</span>
+                            <span>Root folder not found: <strong x-text="root"></strong></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="state.non_repo_dirs && state.non_repo_dirs.length > 0">
+                <div class="missing-roots-banners">
+                    <template x-for="dir in state.non_repo_dirs" :key="dir.path">
+                        <div class="banner banner-warn">
+                            <span class="banner-icon">&#9432;</span>
+                            <span>No git repository found in: <strong x-text="dir.path"></strong></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <div class="repo-grid">
+                <template x-if="visibleProjects.length === 0">
+                    <article class="empty-state">
+                        <h3>No projects yet</h3>
+                        <p>Configure <code>PROJECT_ROOTS</code> in your <code>.env</code> file to start scanning.</p>
+                    </article>
+                </template>
+                <template x-for="project in visibleProjects" :key="project.path">
+                    <article class="repo-card" :class="`tone-${project.status}`">
+                        <div class="repo-card-header">
+                            <div>
+                                <div class="repo-name-wrap" :data-fullname="project.name">
+                                    <p class="repo-name" x-text="project.name"></p>
+                                </div>
+                                <div class="date-info">
+                                    <p>Last commit:</p>
+                                    <span class="date-pill" x-text="project.last_commit_date || 'N/A'"></span>
+                                </div>
+                                <p class="repo-path" x-text="project.path"></p>
+                            </div>
+                            <span class="status-pill" :class="`pill-${project.status}`" x-text="project.status.toUpperCase()"></span>
+                        </div>
+                        <p class="repo-summary" x-text="project.summary"></p>
+                        <dl class="repo-meta">
+                            <div>
+                                <dt>Branch</dt>
+                                <dd x-text="project.branch || 'N/A'"></dd>
+                            </div>
+                            <div>
+                                <dt>Ahead</dt>
+                                <dd x-text="project.ahead_by"></dd>
+                            </div>
+                            <div>
+                                <dt>Behind</dt>
+                                <dd x-text="project.behind_by"></dd>
+                            </div>
+                            <div>
+                                <dt>Dirty Files</dt>
+                                <dd x-text="project.uncommitted_changes"></dd>
+                            </div>
+                        </dl>
+                        <p class="repo-root">Scanned from <span class="repo-path" x-text="project.source_root"></span></p>
+                    </article>
+                </template>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const BASE_PATH = "{{ base_path }}";
+        function dashboard() {
+            return {
+                state: { projects: [], missing_roots: [], non_repo_dirs: [], scanned_at: null, summary: { total: 0, green: 0, yellow: 0, red: 0 } },
+                busy: false,
+                init() {
+                    const node = document.getElementById('initial-state');
+                    if (node?.textContent) {
+                        this.state = JSON.parse(node.textContent);
+                    }
+                },
+                get visibleProjects() {
+                    return (this.state.projects || []).filter(p => p.repo_root !== null);
+                },
+                get formattedScanTime() {
+                    if (!this.state.scanned_at) return 'not scanned yet';
+                    return new Date(this.state.scanned_at).toLocaleString('de-DE');
+                },
+                async refresh() {
+                    this.busy = true;
+                    try {
+                        const response = await fetch(BASE_PATH + '/api/state');
+                        this.state = await response.json();
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+            };
+        }
+    </script>
+</body>
+</html>
