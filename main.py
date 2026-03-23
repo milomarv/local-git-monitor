@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import os
 import subprocess
 from datetime import datetime, timezone
@@ -91,6 +92,31 @@ def get_last_commit_date(repo_path: Path) -> str | None:
     return None
 
 
+def load_exclude_patterns(repo_root: Path) -> list[str]:
+    patterns: list[str] = []
+    for candidate_file in [
+        repo_root / ".git" / "info" / "exclude",
+    ]:
+        if not candidate_file.exists():
+            continue
+        for line in candidate_file.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                patterns.append(line)
+    return patterns
+
+
+def is_excluded_by_patterns(rel_path: str, patterns: list[str]) -> bool:
+    name = Path(rel_path).name
+    for pattern in patterns:
+        p = pattern.lstrip("/")
+        if fnmatch.fnmatch(rel_path, p) or fnmatch.fnmatch(name, p):
+            return True
+    return False
+
+
 def candidate_directories(root_path: Path) -> list[Path]:
     if not root_path.exists() or not root_path.is_dir():
         return []
@@ -147,9 +173,16 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
     branch = branch_result.stdout.strip() or None
 
     status_result = git_command(repo_root, "status", "--porcelain")
-    uncommitted_changes = len(
-        [line for line in status_result.stdout.splitlines() if line.strip()]
-    )
+    exclude_patterns = load_exclude_patterns(repo_root)
+    uncommitted_changes = 0
+    for line in status_result.stdout.splitlines():
+        if not line.strip():
+            continue
+        rel_path = line[3:].strip()
+        if " -> " in rel_path:
+            rel_path = rel_path.split(" -> ")[-1].strip()
+        if not is_excluded_by_patterns(rel_path, exclude_patterns):
+            uncommitted_changes += 1
 
     upstream_result = git_command(
         repo_root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"

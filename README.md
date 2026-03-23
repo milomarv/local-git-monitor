@@ -30,4 +30,4 @@ Then open `http://127.0.0.1:8010`.
 ## Terms
 
 - **Branch** — the currently checked-out local branch for that repository, such as `main` or `master`. The dashboard only reports status for the current branch and its upstream. Other local branches with unpushed commits are not shown unless you check out that branch.
-- **Dirty Files** — count of files with local git changes that are not yet committed. This includes modified, added, deleted, renamed, and untracked files, based on `git status --porcelain`.
+- **Dirty Files** — count of files with local git changes that are not yet committed. This includes modified, added, deleted, renamed, and untracked files, based on `git status --porcelain`. Files whose relative path or filename matches a pattern in `.git/info/exclude` are excluded from the count, even for tracked (already-committed) files.
