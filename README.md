@@ -21,6 +21,18 @@ uv run python main.py
 
 Then open `http://127.0.0.1:8010`.
 
+## Docker & Traefik
+
+A `docker-compose.yml` is included for container deployments. It supports [Traefik](https://traefik.io/) as a reverse proxy out of the box:
+
+- The app is exposed on port `8010` and attached to the `traefik-public` external network.
+- Traefik labels route traffic via the `APP_BASE_PATH` prefix on the `websecure` entrypoint with TLS enabled.
+- Set `APP_BASE_PATH` in your `.env` (e.g. `/localgitmonitor`) to match the Traefik `PathPrefix` rule.
+
+```bash
+docker compose up -d --build
+```
+
 ## Status colours
 
 - **Green OKAY** — upstream configured, nothing waiting to be pushed
