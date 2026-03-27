@@ -3,7 +3,7 @@ from __future__ import annotations
 import fnmatch
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -23,7 +23,7 @@ APP_BASE_PATH = os.environ.get("APP_BASE_PATH", "").rstrip("/")
 
 app = FastAPI(title="Local Git Monitor")
 app.mount(
-    f"{APP_BASE_PATH}/static", StaticFiles(directory=BASE_DIR / "static"), name="static"
+    f"{APP_BASE_PATH}/static", StaticFiles(directory=BASE_DIR / "static"), name="static",
 )
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -53,10 +53,10 @@ def load_roots() -> list[str]:
     seen: set[str] = set()
     roots: list[str] = []
     for part in raw.split(":"):
-        part = part.strip()
-        if not part:
+        stripped = part.strip()
+        if not stripped:
             continue
-        normalized = str(normalize_path(part))
+        normalized = str(normalize_path(stripped))
         if normalized not in seen:
             roots.append(normalized)
             seen.add(normalized)
@@ -66,8 +66,8 @@ def load_roots() -> list[str]:
 def git_command(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
-    return subprocess.run(
-        ["git", "-C", str(path), *args],
+    return subprocess.run(  # noqa: S603
+        ["git", "-C", str(path), *args],  # noqa: S607
         capture_output=True,
         text=True,
         timeout=GIT_TIMEOUT_SECONDS,
@@ -117,11 +117,11 @@ def load_exclude_patterns(repo_root: Path) -> list[str]:
         if not candidate_file.exists():
             continue
         for line in candidate_file.read_text(
-            encoding="utf-8", errors="replace"
+            encoding="utf-8", errors="replace",
         ).splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                patterns.append(line)
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                patterns.append(stripped)
     return patterns
 
 
@@ -147,6 +147,43 @@ def candidate_directories(root_path: Path) -> list[Path]:
         if child.is_dir()
     ]
     return children or [root_path]
+
+
+def _count_uncommitted_changes(porcelain_output: str, exclude_patterns: list[str]) -> int:
+    count = 0
+    for line in porcelain_output.splitlines():
+        if not line.strip():
+            continue
+        rel_path = line[3:].strip()
+        if " -> " in rel_path:
+            rel_path = rel_path.split(" -> ")[-1].strip()
+        if not is_excluded_by_patterns(rel_path, exclude_patterns):
+            count += 1
+    return count
+
+
+def _build_summary(
+    ahead_by: int, behind_by: int, uncommitted_changes: int,
+) -> tuple[str, Literal["okay", "warning"]]:
+    if ahead_by > 0:
+        plural = "s" if ahead_by != 1 else ""
+        summary = f"{ahead_by} commit{plural} waiting to be pushed"
+    elif uncommitted_changes > 0:
+        plural = "s" if uncommitted_changes != 1 else ""
+        summary = f"{uncommitted_changes} uncommitted file change{plural}"
+    else:
+        summary = "Up to date with upstream"
+
+    if behind_by > 0:
+        summary += f"; {behind_by} behind upstream"
+    if ahead_by > 0 and uncommitted_changes > 0:
+        plural = "s" if uncommitted_changes != 1 else ""
+        summary += f"; {uncommitted_changes} local file change{plural}"
+
+    status: Literal["okay", "warning"] = (
+        "warning" if (ahead_by > 0 or uncommitted_changes > 0) else "okay"
+    )
+    return summary, status
 
 
 def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
@@ -193,27 +230,18 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
 
     status_result = git_command(repo_root, "status", "--porcelain")
     exclude_patterns = load_exclude_patterns(repo_root)
-    uncommitted_changes = 0
-    for line in status_result.stdout.splitlines():
-        if not line.strip():
-            continue
-        rel_path = line[3:].strip()
-        if " -> " in rel_path:
-            rel_path = rel_path.split(" -> ")[-1].strip()
-        if not is_excluded_by_patterns(rel_path, exclude_patterns):
-            uncommitted_changes += 1
+    uncommitted_changes = _count_uncommitted_changes(status_result.stdout, exclude_patterns)
 
     upstream_result = git_command(
-        repo_root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"
+        repo_root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}",
     )
     if upstream_result.returncode != 0:
-        summary = "Git repository found, but no upstream remote is configured"
         return ProjectStatus(
             name=repo_root.name,
             path=str(repo_root),
             repo_root=str(repo_root),
             status="critical",
-            summary=summary,
+            summary="Git repository found, but no upstream remote is configured",
             ahead_by=0,
             behind_by=0,
             uncommitted_changes=uncommitted_changes,
@@ -228,24 +256,7 @@ def inspect_directory(source_root: Path, candidate: Path) -> ProjectStatus:
     behind_result = git_command(repo_root, "rev-list", "--count", "HEAD..@{upstream}")
     ahead_by = int(ahead_result.stdout.strip() or "0")
     behind_by = int(behind_result.stdout.strip() or "0")
-
-    if ahead_by > 0:
-        summary = (
-            f"{ahead_by} commit{'s' if ahead_by != 1 else ''} waiting to be pushed"
-        )
-    elif uncommitted_changes > 0:
-        summary = f"{uncommitted_changes} uncommitted file change{'s' if uncommitted_changes != 1 else ''}"
-    else:
-        summary = "Up to date with upstream"
-
-    status: Literal["okay", "warning"] = (
-        "warning" if (ahead_by > 0 or uncommitted_changes > 0) else "okay"
-    )
-
-    if behind_by > 0:
-        summary += f"; {behind_by} behind upstream"
-    if ahead_by > 0 and uncommitted_changes > 0:
-        summary += f"; {uncommitted_changes} local file change{'s' if uncommitted_changes != 1 else ''}"
+    summary, status = _build_summary(ahead_by, behind_by, uncommitted_changes)
 
     return ProjectStatus(
         name=repo_root.name,
@@ -308,7 +319,7 @@ def build_dashboard_payload() -> dict[str, object]:
             for p in non_repo_dirs
         ],
         "projects": [project.model_dump() for project in projects],
-        "scanned_at": datetime.now(timezone.utc).isoformat(),
+        "scanned_at": datetime.now(UTC).isoformat(),
         "summary": {
             "total": len(projects),
             "okay": sum(1 for project in projects if project.status == "okay"),
@@ -354,7 +365,7 @@ class PushRequest(BaseModel):
 
 @app.post(f"{APP_BASE_PATH}/api/push")
 async def push_repo(body: PushRequest) -> dict[str, object]:
-    repo_path = Path(body.repo_path).resolve(strict=False)
+    repo_path = Path(body.repo_path).resolve(strict=False)  # noqa: ASYNC240
     if not is_git_repository(repo_path):
         return {"success": False, "output": "Not a valid git repository"}
     remote_url = get_remote_url(repo_path)
@@ -371,7 +382,7 @@ async def push_repo(body: PushRequest) -> dict[str, object]:
 
 def main() -> None:
     dev = os.environ.get("DEV", "false").lower() == "true"
-    uvicorn.run("main:app", host="0.0.0.0", port=8010, reload=dev)
+    uvicorn.run("main:app", host="0.0.0.0", port=8010, reload=dev)  # noqa: S104
 
 
 if __name__ == "__main__":
