@@ -94,6 +94,20 @@
                         </div>
                         <p class="repo-summary" x-text="project.summary"></p>
                         <div class="repo-bottom">
+                        <template x-if="project.ahead_by > 0">
+                            <div>
+                                <button
+                                    type="button"
+                                    class="btn-push"
+                                    :disabled="pushing[project.path] === true"
+                                    @click="pushProject(project.path)"
+                                    x-text="pushing[project.path] ? 'Pushing…' : 'Push ' + project.ahead_by + ' commit' + (project.ahead_by !== 1 ? 's' : '')"
+                                ></button>
+                                <template x-if="pushError[project.path]">
+                                    <p class="push-error" x-text="pushError[project.path]"></p>
+                                </template>
+                            </div>
+                        </template>
                         <template x-if="project.remote_url">
                             <p class="repo-remote-url">
                                 <template x-if="project.remote_url.startsWith('http')">
@@ -136,6 +150,8 @@
             return {
                 state: { projects: [], missing_roots: [], non_repo_dirs: [], scanned_at: null, summary: { total: 0, green: 0, yellow: 0, red: 0 } },
                 busy: false,
+                pushing: {},
+                pushError: {},
                 init() {
                     const node = document.getElementById('initial-state');
                     if (node?.textContent) {
@@ -156,6 +172,27 @@
                         this.state = await response.json();
                     } finally {
                         this.busy = false;
+                    }
+                },
+                async pushProject(path) {
+                    this.pushing[path] = true;
+                    delete this.pushError[path];
+                    try {
+                        const res = await fetch(BASE_PATH + '/api/push', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ repo_path: path }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            await this.refresh();
+                        } else {
+                            this.pushError[path] = data.output || 'Push failed';
+                        }
+                    } catch (e) {
+                        this.pushError[path] = 'Network error';
+                    } finally {
+                        this.pushing[path] = false;
                     }
                 },
             };

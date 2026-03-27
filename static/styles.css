@@ -205,6 +205,33 @@ button:disabled {
     color: var(--red);
 }
 
+.btn-push {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    background: rgba(250, 204, 21, 0.12);
+    color: var(--yellow);
+    border: 1px solid rgba(250, 204, 21, 0.25);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.btn-push:disabled {
+    cursor: wait;
+}
+
+.btn-push:hover:not(:disabled) {
+    background: rgba(250, 204, 21, 0.2);
+    border-color: rgba(250, 204, 21, 0.45);
+}
+
+.push-error {
+    margin: 0 0 0.75rem;
+    font-size: 0.82rem;
+    color: var(--red);
+    word-break: break-word;
+}
+
 .flash {
     margin: 0;
     padding: 0.9rem 1rem;

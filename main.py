@@ -333,6 +333,38 @@ async def get_state() -> dict[str, object]:
     return build_dashboard_payload()
 
 
+def https_to_ssh_url(url: str) -> str | None:
+    if not url.startswith("https://"):
+        return None
+    rest = url[len("https://") :]
+    slash_idx = rest.find("/")
+    if slash_idx == -1:
+        return None
+    host = rest[:slash_idx]
+    path = rest[slash_idx + 1 :]
+    return f"git@{host}:{path}"
+
+
+class PushRequest(BaseModel):
+    repo_path: str
+
+
+@app.post(f"{APP_BASE_PATH}/api/push")
+async def push_repo(body: PushRequest) -> dict[str, object]:
+    repo_path = Path(body.repo_path).resolve(strict=False)
+    if not is_git_repository(repo_path):
+        return {"success": False, "output": "Not a valid git repository"}
+    remote_url = get_remote_url(repo_path)
+    if remote_url and remote_url.startswith("https://"):
+        ssh_url = https_to_ssh_url(remote_url)
+        if ssh_url:
+            git_command(repo_path, "remote", "set-url", "origin", ssh_url)
+    result = git_command(repo_path, "push")
+    success = result.returncode == 0
+    output = (result.stdout + result.stderr).strip()
+    return {"success": success, "output": output}
+
+
 def main() -> None:
     dev = os.environ.get("DEV", "false").lower() == "true"
     uvicorn.run("main:app", host="0.0.0.0", port=8010, reload=dev)
