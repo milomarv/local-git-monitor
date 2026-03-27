@@ -10,7 +10,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ${PROJECT_ROOTS}:${PROJECT_ROOTS}:ro
+      - ${PROJECT_ROOTS}:${PROJECT_ROOTS}
+      - ~/.ssh:/root/.ssh:ro
     restart: unless-stopped
     labels:
       - traefik.enable=true

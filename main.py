@@ -64,12 +64,15 @@ def load_roots() -> list[str]:
 
 
 def git_command(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
     return subprocess.run(
         ["git", "-C", str(path), *args],
         capture_output=True,
         text=True,
         timeout=GIT_TIMEOUT_SECONDS,
         check=False,
+        env=env,
     )
 
 
@@ -355,11 +358,12 @@ async def push_repo(body: PushRequest) -> dict[str, object]:
     if not is_git_repository(repo_path):
         return {"success": False, "output": "Not a valid git repository"}
     remote_url = get_remote_url(repo_path)
+    extra_args: list[str] = []
     if remote_url and remote_url.startswith("https://"):
         ssh_url = https_to_ssh_url(remote_url)
         if ssh_url:
-            git_command(repo_path, "remote", "set-url", "origin", ssh_url)
-    result = git_command(repo_path, "push")
+            extra_args = ["-c", f"remote.origin.pushurl={ssh_url}"]
+    result = git_command(repo_path, *extra_args, "push")
     success = result.returncode == 0
     output = (result.stdout + result.stderr).strip()
     return {"success": success, "output": output}
