@@ -4,7 +4,9 @@ line-length = 100
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "D1",     # missing docstring rules
+  "D1",    # missing docstring rules
+  "D203",  # conflicts with D211 (no blank line before class docstring)
+  "D213",  # conflicts with D212 (multi-line summary on first line)
 ]
 
 [project]
