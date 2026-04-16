@@ -88,9 +88,9 @@
                                     <p>Last commit:</p>
                                     <span class="date-pill" x-text="project.last_commit_date || 'N/A'"></span>
                                 </div>
-                                <p class="repo-path" x-text="project.path"></p>
                             </div>
                             <span class="status-pill" :class="`pill-${project.status}`" x-text="project.status.toUpperCase()"></span>
+                            <p class="repo-path" x-text="project.path"></p>
                         </div>
                         <p class="repo-summary" x-text="project.summary"></p>
                         <div class="repo-bottom">

@@ -1,6 +1,6 @@
 # Local Git Monitor
 
-Small FastAPI dashboard that scans one or more project root folders and shows the git status of each repository at a glance.
+Small FastAPI dashboard that scans one or more project root folders, shows the git status of each repository at a glance, and lets you push pending commits straight from the UI.
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ A `docker-compose.yml` is included for container deployments with [Traefik](http
 
 - The app is exposed on port `8010` and attached to the `traefik-public` external network.
 - Traefik labels route traffic via the `APP_BASE_PATH` prefix on the `websecure` entrypoint with TLS.
-- The `PROJECT_ROOTS` path is bind-mounted into the container at the same path, so the value you set in `.env` works unchanged inside the container.
+- Your `$HOME` directory is bind-mounted into the container at the same path, so any `PROJECT_ROOTS` entries under your home folder (including multiple colon-separated paths) work unchanged inside the container.
 - Your `~/.ssh` directory is mounted read-only so git can push over SSH.
 
 ```bash

@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ${PROJECT_ROOTS}:${PROJECT_ROOTS}
+      - ${HOME}:${HOME}
       - ~/.ssh:/root/.ssh:ro
     restart: unless-stopped
     labels:
