@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: local-git-monitor
+    mem_limit: 128m
+    mem_reservation: 64m
     ports:
       - "8010:8010"
     env_file:

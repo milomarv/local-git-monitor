@@ -35,6 +35,7 @@ A `docker-compose.yml` is included for container deployments with [Traefik](http
 - Traefik labels route traffic via the `APP_BASE_PATH` prefix on the `websecure` entrypoint with TLS.
 - Your `$HOME` directory is bind-mounted into the container at the same path, so any `PROJECT_ROOTS` entries under your home folder (including multiple colon-separated paths) work unchanged inside the container.
 - Your `~/.ssh` directory is mounted read-only so git can push over SSH.
+- Memory is limited to **128 MB** (hard limit) with a **64 MB** soft reservation to prevent unbounded memory usage.
 
 ```bash
 docker compose up -d --build
